@@ -1,0 +1,7 @@
+---
+target_dir: /tmp/enlil
+enlil_file: /tmp/enlil/enlil_source.json
+video_dir: /tmp/enlil
+video_file: enlil.mp4
+font: /System/Library/Fonts/Supplemental/Arial Narrow.ttf
+font_size: 16
