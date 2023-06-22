@@ -114,8 +114,8 @@ def mk_video(src, video_file):
   logfile = '/tmp/enlil_animation.log'
   tmp_file = f"{video_file}-{os.getpid()}.mp4"
   input_files = os.path.join(src, 'enlil-%05d.jpg')
-  in_args = f'-y -framerate 10 -i {input_files}'.split()
-  ou_args = '-c:v libx264 -pix_fmt yuv420p -vf scale=800:600'.split()
+  in_args = f'-y -framerate 15 -stream_loop 2 -i {input_files}'.split()
+  ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=800:600'.split()
   cmd = [ffmpeg, *in_args, *ou_args, tmp_file]
   logging.info('Writing ffmpeg output in %s', logfile)
   logging.info("Saving %s video file", tmp_file)
@@ -159,7 +159,11 @@ def main():
 
   if not os.path.isdir(config.target_dir):
     logging.warning("The target directory %s does not exist", config.target_dir)
-    os.makedirs(config.target_dir)
+    try:
+      os.makedirs(config.target_dir)
+    except IOError as err:
+      logging.error(err)
+      sys.exit(os.EX_IOERR)
 
   retrieve_files(config.enlil_file, config.target_dir)
   animate(config.target_dir, config.video_dir, config.video_file)
