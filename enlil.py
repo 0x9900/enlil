@@ -61,6 +61,7 @@ def retrieve_files(enlil_file, target_dir):
   logging.info('Downloading: %s, into: %s', SOURCE_JSON, enlil_file)
   with open(enlil_file, 'r', encoding='utf-8') as fdin:
     data_source = json.load(fdin)
+    new_cnt = 0
     for url in data_source:
       filename = os.path.basename(url['url'])
       target_name = os.path.join(target_dir, filename)
@@ -68,7 +69,9 @@ def retrieve_files(enlil_file, target_dir):
         continue
       urlretrieve(NOAA + url['url'], target_name)
       logging.info('%s saved', target_name)
+      new_cnt += 1
 
+  return new_cnt
 
 def purge(enlil_file, target_dir):
   """Cleanup old enlil image that are not present in the json manifest"""
@@ -138,7 +141,7 @@ def cleanup(directory):
   logging.info('Working directory "%s" removed', directory)
 
 
-def animate(source_dir, video_dir, video_file):
+def animate(source_dir, video_file):
   pid = os.getpid()
   try:
     work_dir = os.path.join(source_dir, f"workdir-{pid}")
@@ -146,8 +149,7 @@ def animate(source_dir, video_dir, video_file):
 
     files = select_files(source_dir)
     create_links(source_dir, work_dir, files)
-    video_dest = os.path.join(video_dir, video_file)
-    mk_video(work_dir, video_dest)
+    mk_video(work_dir, video_file)
   except KeyboardInterrupt:
     logging.warning("^C pressed")
     sys.exit(os.EX_SOFTWARE)
@@ -165,9 +167,12 @@ def main():
       logging.error(err)
       sys.exit(os.EX_IOERR)
 
-  retrieve_files(config.enlil_file, config.target_dir)
-  animate(config.target_dir, config.video_dir, config.video_file)
-  purge(config.enlil_file, config.target_dir)
+  video_file = os.path.join(config.video_dir, config.video_file)
+  if retrieve_files(config.enlil_file, config.target_dir) or not os.path.exists(video_file):
+    animate(config.target_dir, video_file)
+    purge(config.enlil_file, config.target_dir)
+  else:
+    logging.info('No new data')
 
 if __name__ == "__main__":
   try:
