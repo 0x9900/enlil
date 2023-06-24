@@ -169,8 +169,8 @@ def main():
 
   video_file = os.path.join(config.video_dir, config.video_file)
   if retrieve_files(config.enlil_file, config.target_dir) or not os.path.exists(video_file):
-    animate(config.target_dir, video_file)
     purge(config.enlil_file, config.target_dir)
+    animate(config.target_dir, video_file)
   else:
     logging.info('No new data')
 
