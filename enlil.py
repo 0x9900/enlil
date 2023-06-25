@@ -117,7 +117,7 @@ def mk_video(src, video_file):
   logfile = '/tmp/enlil_animation.log'
   tmp_file = f"{video_file}-{os.getpid()}.mp4"
   input_files = os.path.join(src, 'enlil-%05d.jpg')
-  in_args = f'-y -framerate 15 -stream_loop 2 -i {input_files}'.split()
+  in_args = f'-y -framerate 15 -i {input_files}'.split()
   ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=800:600'.split()
   cmd = [ffmpeg, *in_args, *ou_args, tmp_file]
   logging.info('Writing ffmpeg output in %s', logfile)
