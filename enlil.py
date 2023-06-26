@@ -19,6 +19,8 @@ from urllib.request import urlretrieve
 
 import yaml
 
+from PIL import Image
+
 # https://services.swpc.noaa.gov/products/animations/enlil.json
 CONFIG_NAME = 'enlil.yaml'
 NOAA = "https://services.swpc.noaa.gov"
@@ -49,6 +51,15 @@ def read_config():
   return type('Config', (object,), config)
 
 
+def add_margin(im_name, top, right, bottom, left, color=(0xff, 0xff, 0xff)):
+  image = Image.open(im_name)
+  width, height = image.size
+  new_width = width + right + left
+  new_height = height + top + bottom
+  new_image = Image.new(image.mode, (new_width, new_height), color)
+  new_image.paste(image, (left, top))
+  new_image.save(im_name, quality=95)
+
 def retrieve_files(enlil_file, target_dir):
   try:
     file_time = os.stat(enlil_file).st_mtime
@@ -68,9 +79,9 @@ def retrieve_files(enlil_file, target_dir):
       if os.path.exists(target_name):
         continue
       urlretrieve(NOAA + url['url'], target_name)
+      add_margin(target_name, 0, 0, 50, 0)
       logging.info('%s saved', target_name)
       new_cnt += 1
-
   return new_cnt
 
 def purge(enlil_file, target_dir):
