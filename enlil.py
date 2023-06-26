@@ -51,7 +51,7 @@ def read_config():
   return type('Config', (object,), config)
 
 
-def add_margin(im_name, top, right, bottom, left, color=(0xff, 0xff, 0xff)):
+def add_margin(im_name, top, right, bottom, left, color=(0x28, 0x28, 0x28)):
   image = Image.open(im_name)
   width, height = image.size
   new_width = width + right + left
@@ -129,7 +129,7 @@ def mk_video(src, video_file):
   tmp_file = f"{video_file}-{os.getpid()}.mp4"
   input_files = os.path.join(src, 'enlil-%05d.jpg')
   in_args = f'-y -framerate 15 -i {input_files}'.split()
-  ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=800:600'.split()
+  ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=700:474'.split()
   cmd = [ffmpeg, *in_args, *ou_args, tmp_file]
   logging.info('Writing ffmpeg output in %s', logfile)
   logging.info("Saving %s video file", tmp_file)
