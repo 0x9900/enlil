@@ -27,7 +27,7 @@ NOAA = "https://services.swpc.noaa.gov"
 SOURCE_JSON = NOAA + "/products/animations/enlil.json"
 
 logging.basicConfig(format='%(asctime)s %(name)s:%(lineno)d %(levelname)s - %(message)s',
-                    datefmt='%H:%M:%S', level=logging.INFO)
+                    datefmt='%Y/%m/%d %H:%M:%S', level=logging.INFO)
 
 def read_config():
   home = os.path.expanduser('~')
