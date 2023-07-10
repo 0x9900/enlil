@@ -63,13 +63,12 @@ def add_margin(im_name, top, right, bottom, left, color=(0x28, 0x28, 0x28)):
 def retrieve_files(enlil_file, target_dir):
   try:
     file_time = os.stat(enlil_file).st_mtime
-    if time.time() - file_time < 3600:
-      return
+    if time.time() - file_time > 3600:
+      raise FileNotFoundError
   except FileNotFoundError:
-    pass
+    urlretrieve(SOURCE_JSON, enlil_file)
+    logging.info('Downloading: %s, into: %s', SOURCE_JSON, enlil_file)
 
-  urlretrieve(SOURCE_JSON, enlil_file)
-  logging.info('Downloading: %s, into: %s', SOURCE_JSON, enlil_file)
   with open(enlil_file, 'r', encoding='utf-8') as fdin:
     data_source = json.load(fdin)
     new_cnt = 0
@@ -80,8 +79,9 @@ def retrieve_files(enlil_file, target_dir):
         continue
       urlretrieve(NOAA + url['url'], target_name)
       add_margin(target_name, 0, 0, 50, 0)
-      logging.info('%s saved', target_name)
+      logging.debug('%s saved', target_name)
       new_cnt += 1
+  logging.info('%d new files downloaded', new_cnt)
   return new_cnt
 
 def purge(enlil_file, target_dir):
@@ -93,14 +93,17 @@ def purge(enlil_file, target_dir):
     for entry in data:
       current_files.add(os.path.basename(entry['url']))
 
-  for name in os.listdir(target_dir):
-    if name.startswith('enlil_com') and name not in current_files:
+  names = (n for n in os.listdir(target_dir) if n.startswith('enlil_com'))
+  count = 0
+  for name in names:
+    if name not in current_files:
       try:
         os.unlink(os.path.join(target_dir, name))
-        logging.info('Delete file: %s', name)
+        logging.debug('Delete file: %s', name)
+        count += 1
       except IOError as exp:
         logging.error(exp)
-
+  logging.info('%d files deleted', count)
 
 def select_files(source_dir):
   file_list = []
@@ -168,6 +171,13 @@ def animate(source_dir, video_file):
     cleanup(work_dir)
 
 def main():
+
+  loglevel = os.getenv('LOGLEVEL', 'INFO')
+  if loglevel not in logging._nameToLevel: # pylint: disable=protected-access
+    logging.error('Log level "%s" does not exist, defaulting to INFO', loglevel)
+    loglevel = logging.INFO
+  logging.root.setLevel(loglevel)
+
   config = read_config()
 
   if not os.path.isdir(config.target_dir):
