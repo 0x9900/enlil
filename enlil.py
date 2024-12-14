@@ -13,22 +13,22 @@ import os
 import shutil
 import sys
 import time
-
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
 from urllib.request import urlretrieve
 
 import yaml
-
 from PIL import Image
 
 # https://services.swpc.noaa.gov/products/animations/enlil.json
 CONFIG_NAME = 'enlil.yaml'
 NOAA = "https://services.swpc.noaa.gov"
 SOURCE_JSON = NOAA + "/products/animations/enlil.json"
+MARGIN_COLOR = (0x28, 0x28, 0x28)
 
 logging.basicConfig(format='%(asctime)s %(name)s:%(lineno)d %(levelname)s - %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S', level=logging.INFO)
 logger = logging.getLogger('enlil')
+
 
 def read_config():
   home = os.path.expanduser('~')
@@ -52,7 +52,8 @@ def read_config():
   return type('Config', (object,), config)
 
 
-def add_margin(im_name, top, right, bottom, left, color=(0x28, 0x28, 0x28)):
+def add_margin(im_name, top, right, bottom, left):
+  color = MARGIN_COLOR
   image = Image.open(im_name)
   width, height = image.size
   new_width = width + right + left
@@ -60,6 +61,7 @@ def add_margin(im_name, top, right, bottom, left, color=(0x28, 0x28, 0x28)):
   new_image = Image.new(image.mode, (new_width, new_height), color)
   new_image.paste(image, (left, top))
   new_image.save(im_name, quality=95)
+
 
 def retrieve_files(enlil_file, target_dir):
   try:
@@ -85,6 +87,7 @@ def retrieve_files(enlil_file, target_dir):
   logger.info('%d new files downloaded', new_cnt)
   return new_cnt
 
+
 def purge(enlil_file, target_dir):
   """Cleanup old enlil image that are not present in the json manifest"""
   logger.info('Cleaning up non active Enlil images')
@@ -105,6 +108,7 @@ def purge(enlil_file, target_dir):
       except IOError as exp:
         logger.error(exp)
   logger.info('%d files deleted', count)
+
 
 def select_files(source_dir):
   file_list = []
@@ -133,7 +137,7 @@ def mk_video(src, video_file):
   tmp_file = f"{video_file}-{os.getpid()}.mp4"
   input_files = os.path.join(src, 'enlil-%05d.jpg')
   in_args = f'-y -framerate 10 -i {input_files}'.split()
-  ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=700:474'.split()
+  ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=800:542'.split()
   cmd = [ffmpeg, *in_args, *ou_args, tmp_file]
   logger.info('Writing ffmpeg output in %s', logfile)
   logger.info("Saving %s video file", tmp_file)
@@ -148,6 +152,7 @@ def mk_video(src, video_file):
       return
     logger.info('mv %s %s', tmp_file, video_file)
     os.rename(tmp_file, video_file)
+
 
 def cleanup(directory):
   for name in os.listdir(directory):
@@ -170,6 +175,7 @@ def animate(source_dir, video_file):
   finally:
     cleanup(work_dir)
 
+
 def main():
   logger.setLevel(logging.getLevelName(os.getenv('LOG_LEVEL', 'INFO')))
   config = read_config()
@@ -188,6 +194,7 @@ def main():
     animate(config.target_dir, video_file)
   else:
     logger.info('No new data')
+
 
 if __name__ == "__main__":
   main()

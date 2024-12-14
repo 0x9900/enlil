@@ -2,7 +2,7 @@
 #
 import sys
 
-from setuptools import setup, find_packages
+from setuptools import setup
 
 __author__ = "Fred C. (W6BSD)"
 __version__ = '1.0.0'
@@ -26,7 +26,7 @@ setup(
   long_description=long_description,
   long_description_content_type='text/markdown',
   url='https://0x9900.com/',
-  project_urls = URLS,
+  project_urls=URLS,
   license=__license__,
   author=__author__,
   author_email='w6bsd@bsdworld.org',
@@ -34,7 +34,7 @@ setup(
     'enlil',
   ],
   python_requires=">=3.9.0",
-  entry_points = {
+  entry_points={
     'console_scripts': [
       'enlil = enlil:main',
     ],
