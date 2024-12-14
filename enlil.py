@@ -28,6 +28,7 @@ SOURCE_JSON = NOAA + "/products/animations/enlil.json"
 
 logging.basicConfig(format='%(asctime)s %(name)s:%(lineno)d %(levelname)s - %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S', level=logging.INFO)
+logger = logging.getLogger('enlil')
 
 def read_config():
   home = os.path.expanduser('~')
@@ -40,12 +41,12 @@ def read_config():
   for filename in config_path:
     if os.path.exists(filename):
       break
-    logging.debug('Config file "%s" not found', filename)
+    logger.debug('Config file "%s" not found', filename)
   else:
-    logging.error('No Configuration file found')
+    logger.error('No Configuration file found')
     sys.exit(os.EX_CONFIG)
 
-  logging.debug('Reading config file "%s"', filename)
+  logger.debug('Reading config file "%s"', filename)
   with open(filename, 'r', encoding='utf-8') as confd:
     config = yaml.safe_load(confd)
   return type('Config', (object,), config)
@@ -67,7 +68,7 @@ def retrieve_files(enlil_file, target_dir):
       raise FileNotFoundError
   except FileNotFoundError:
     urlretrieve(SOURCE_JSON, enlil_file)
-    logging.info('Downloading: %s, into: %s', SOURCE_JSON, enlil_file)
+    logger.info('Downloading: %s, into: %s', SOURCE_JSON, enlil_file)
 
   with open(enlil_file, 'r', encoding='utf-8') as fdin:
     data_source = json.load(fdin)
@@ -79,14 +80,14 @@ def retrieve_files(enlil_file, target_dir):
         continue
       urlretrieve(NOAA + url['url'], target_name)
       add_margin(target_name, 0, 0, 50, 0)
-      logging.debug('%s saved', target_name)
+      logger.info('%s saved', target_name)
       new_cnt += 1
-  logging.info('%d new files downloaded', new_cnt)
+  logger.info('%d new files downloaded', new_cnt)
   return new_cnt
 
 def purge(enlil_file, target_dir):
   """Cleanup old enlil image that are not present in the json manifest"""
-  logging.info('Cleaning up non active Enlil images')
+  logger.info('Cleaning up non active Enlil images')
   current_files = set([])
   with open(enlil_file, 'r', encoding='utf-8') as fdm:
     data = json.load(fdm)
@@ -99,11 +100,11 @@ def purge(enlil_file, target_dir):
     if name not in current_files:
       try:
         os.unlink(os.path.join(target_dir, name))
-        logging.debug('Delete file: %s', name)
+        logger.debug('Delete file: %s', name)
         count += 1
       except IOError as exp:
-        logging.error(exp)
-  logging.info('%d files deleted', count)
+        logger.error(exp)
+  logger.info('%d files deleted', count)
 
 def select_files(source_dir):
   file_list = []
@@ -111,19 +112,19 @@ def select_files(source_dir):
     if not name.startswith('enlil_com') and not name.endswith('.jpg'):
       continue
     file_list.append(name)
-  logging.info('%d files selected for animation', len(file_list))
+  logger.info('%d files selected for animation', len(file_list))
   return sorted(file_list)
 
 
 def create_links(source_dir, target_dir, file_list):
-  logging.info('Creating workspace %s', target_dir)
+  logger.info('Creating workspace %s', target_dir)
   if not file_list:
     return
   for idx, name in enumerate(file_list):
     target = os.path.join(target_dir, f"enlil-{idx:05d}.jpg")
     source = os.path.join(source_dir, name)
     os.link(source, target)
-    logging.debug('Target file: %s', target)
+    logger.debug('Target file: %s', target)
 
 
 def mk_video(src, video_file):
@@ -134,8 +135,8 @@ def mk_video(src, video_file):
   in_args = f'-y -framerate 10 -i {input_files}'.split()
   ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=700:474'.split()
   cmd = [ffmpeg, *in_args, *ou_args, tmp_file]
-  logging.info('Writing ffmpeg output in %s', logfile)
-  logging.info("Saving %s video file", tmp_file)
+  logger.info('Writing ffmpeg output in %s', logfile)
+  logger.info("Saving %s video file", tmp_file)
   with open(logfile, "a", encoding='ascii') as err:
     err.write(' '.join(cmd))
     err.write('\n\n')
@@ -143,16 +144,16 @@ def mk_video(src, video_file):
     with Popen(cmd, shell=False, stdout=PIPE, stderr=err) as proc:
       proc.wait()
     if proc.returncode != 0:
-      logging.error('Error generating the video file')
+      logger.error('Error generating the video file')
       return
-    logging.info('mv %s %s', tmp_file, video_file)
+    logger.info('mv %s %s', tmp_file, video_file)
     os.rename(tmp_file, video_file)
 
 def cleanup(directory):
   for name in os.listdir(directory):
     os.unlink(os.path.join(directory, name))
   os.rmdir(directory)
-  logging.info('Working directory "%s" removed', directory)
+  logger.info('Working directory "%s" removed', directory)
 
 
 def animate(source_dir, video_file):
@@ -160,32 +161,25 @@ def animate(source_dir, video_file):
   try:
     work_dir = os.path.join(source_dir, f"workdir-{pid}")
     os.mkdir(work_dir)
-
     files = select_files(source_dir)
     create_links(source_dir, work_dir, files)
     mk_video(work_dir, video_file)
   except KeyboardInterrupt:
-    logging.warning("^C pressed")
+    logger.warning("^C pressed")
     sys.exit(os.EX_SOFTWARE)
   finally:
     cleanup(work_dir)
 
 def main():
-
-  loglevel = os.getenv('LOGLEVEL', 'INFO')
-  if loglevel not in logging._nameToLevel: # pylint: disable=protected-access
-    logging.error('Log level "%s" does not exist, defaulting to INFO', loglevel)
-    loglevel = logging.INFO
-  logging.root.setLevel(loglevel)
-
+  logger.setLevel(logging.getLevelName(os.getenv('LOG_LEVEL', 'INFO')))
   config = read_config()
 
   if not os.path.isdir(config.target_dir):
-    logging.warning("The target directory %s does not exist", config.target_dir)
+    logger.warning("The target directory %s does not exist", config.target_dir)
     try:
       os.makedirs(config.target_dir)
     except IOError as err:
-      logging.error(err)
+      logger.error(err)
       sys.exit(os.EX_IOERR)
 
   video_file = os.path.join(config.video_dir, config.video_file)
@@ -193,12 +187,7 @@ def main():
     purge(config.enlil_file, config.target_dir)
     animate(config.target_dir, video_file)
   else:
-    logging.info('No new data')
+    logger.info('No new data')
 
 if __name__ == "__main__":
-  try:
-    main()
-  except KeyboardInterrupt:
-    print('Program interrupted.')
-  finally:
-    sys.exit()
+  main()
