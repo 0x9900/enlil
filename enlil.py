@@ -114,7 +114,7 @@ def get_etag(url):
 
 
 def download_with_etag(url: str, filename: Path, etag: Union[str, None] = None) -> bool:
-  # Returns True if a new file has been downloaded False oterwise.
+  # Returns True if a new file has been downloaded False otherwise.
   headers = {}
   if etag:
     headers['If-None-Match'] = etag
