@@ -107,7 +107,7 @@ def add_margin(im_name: Path, top: int, right: int, bottom: int, left: int) -> N
   new_image.save(im_name)
 
 
-def get_etag(url):
+def get_etag(url: str) -> str | None:
   req = urllib.request.Request(url, method='HEAD')
   with urllib.request.urlopen(req) as response:
     return response.headers.get('ETag')
@@ -153,7 +153,7 @@ def retrieve_files(enlil_file: Path, target_dir: Path) -> bool:
     new_file = download_with_etag(SOURCE_JSON, enlil_file, etag)
 
   if not new_file:
-    logging.info('No new version of %s', enlil_file)
+    logging.info('No new version of %s', enlil_file.name)
     return False
 
   logging.info('New %s file has been downloaded: processing', enlil_file)
