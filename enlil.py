@@ -7,17 +7,17 @@
 #
 #
 
+import argparse
 import json
 import logging
 import os
 import shutil
 import sys
-import time
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Any, Dict, Iterator, List, Optional, Type
-from urllib.request import urlretrieve
+from typing import Dict, Iterator, List, Optional, Type, Union
 
 import yaml
 from PIL import Image
@@ -26,7 +26,7 @@ from PIL import Image
 CONFIG_NAME = 'enlil.yaml'
 NOAA = "https://services.swpc.noaa.gov"
 SOURCE_JSON = NOAA + "/products/animations/enlil.json"
-MARGIN_COLOR = (0x28, 0x28, 0x28)
+MARGIN_COLOR = (0x0, 0x0, 0x0)
 
 logging.basicConfig(format='%(asctime)s %(name)s:%(lineno)d %(levelname)s - %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S', level=logging.INFO)
@@ -56,7 +56,8 @@ class Config:
   enlil_file: Path
   video_file: Path
 
-  def __init__(self, *args: Any, **kwargs: Dict[str, str]) -> None:
+  def __init__(self, **kwargs: Dict[str, str]) -> None:
+    # pylint: disable=no-member
     for key, val in kwargs.items():
       if key not in self.__dataclass_fields__:
         logging.warning('Configuration attribute: %s ignored', key)
@@ -106,25 +107,62 @@ def add_margin(im_name: Path, top: int, right: int, bottom: int, left: int) -> N
   new_image.save(im_name)
 
 
-def retrieve_files(enlil_file: Path, target_dir: Path) -> None:
-  try:
-    file_time = os.stat(enlil_file).st_mtime
-    if time.time() - file_time > 3600:
-      raise FileNotFoundError
-  except FileNotFoundError:
-    urlretrieve(SOURCE_JSON, enlil_file)
-    logger.info('Downloading: %s, into: %s', SOURCE_JSON, enlil_file)
+def get_etag(url):
+  req = urllib.request.Request(url, method='HEAD')
+  with urllib.request.urlopen(req) as response:
+    return response.headers.get('ETag')
 
+
+def download_with_etag(url: str, filename: Path, etag: Union[str, None] = None) -> bool:
+  # Returns True if a new file has been downloaded False oterwise.
+  headers = {}
+  if etag:
+    headers['If-None-Match'] = etag
+
+  req = urllib.request.Request(url, headers=headers)
+  try:
+    with urllib.request.urlopen(req) as response:
+      if response.status == 200:
+        urllib.request.urlretrieve(url, filename)
+        return True
+      if response.status == 304:
+        logging.info("File not modified since last download.")
+        return False
+  except urllib.error.HTTPError as e:
+    if e.code == 304:
+      logging.info("File not modified since last download.")
+      return False
+    raise
+  return False
+
+
+def retrieve_image(source_path, target_dir):
+  target_name = target_dir.joinpath(source_path.name)
+  if target_name.exists():
+    return
+  urllib.request.urlretrieve(NOAA + str(source_path), target_name)
+  add_margin(target_name, 0, 0, 50, 0)
+  logger.info('%s saved', target_name)
+
+
+def retrieve_files(enlil_file: Path, target_dir: Path) -> bool:
+  if not enlil_file.exists():
+    new_file = download_with_etag(SOURCE_JSON, enlil_file)
+  else:
+    etag = get_etag(SOURCE_JSON)
+    new_file = download_with_etag(SOURCE_JSON, enlil_file, etag)
+
+  if not new_file:
+    logging.info('No new version of %s', enlil_file)
+    return False
+
+  logging.info('New %s file has been downloaded: processing', enlil_file)
   with open(enlil_file, 'r', encoding='utf-8') as fdin:
     data_source = json.load(fdin)
     for url in data_source:
-      filename = os.path.basename(url['url'])
-      target_name = target_dir.joinpath(filename)
-      if os.path.exists(target_name):
-        continue
-      urlretrieve(NOAA + url['url'], target_name)
-      add_margin(target_name, 0, 0, 50, 0)
-      logger.info('%s saved', target_name)
+      retrieve_image(Path(url['url']), target_dir)
+
+  return True
 
 
 def purge(enlil_file: Path, target_dir: Path) -> None:
@@ -164,12 +202,12 @@ def select_files(source_dir: Path) -> List[Path]:
   return sorted(file_list)
 
 
-def create_links(source_dir: Path, workdir: Path, file_list: List[Path]):
+def create_links(workdir: Path, file_list: List[Path]):
   cnt = counter()
   for filename in file_list:
     target = workdir.joinpath(f"enlil-{next(cnt)}.jpg")
     target.hardlink_to(filename)
-    logger.info('Target file: %s', target)
+    logger.info('File "%s" selected', target)
 
 
 def mk_video(work_dir: Path, video_file: Path):
@@ -203,17 +241,27 @@ def mk_video(work_dir: Path, video_file: Path):
 def animate(source_dir: Path, video_file: Path):
   with Workdir(source_dir) as work_dir:
     files = select_files(source_dir)
-    create_links(source_dir, work_dir, files)
+    create_links(work_dir, files)
     mk_video(work_dir, video_file)
 
 
 def main():
   logger.setLevel(logging.getLevelName(os.getenv('LOG_LEVEL', 'INFO')))
+
+  parser = argparse.ArgumentParser(description='Generate ENLIL animation')
+  parser.add_argument('-f', '--force', action="store_true", default=False,
+                      help="Create the video, even if there is no new data")
+  opts = parser.parse_args()
+
   config = read_config()
 
-  retrieve_files(config.enlil_file, config.target_dir)
-  purge(config.enlil_file, config.target_dir)
-  animate(config.target_dir, config.video_file)
+  if not config.target_dir.is_dir():
+    logging.error('Directory "%s" does not exist', config.target_dir)
+    raise SystemExit('Directory not found')
+
+  if retrieve_files(config.enlil_file, config.target_dir) or opts.force:
+    purge(config.enlil_file, config.target_dir)
+    animate(config.target_dir, config.video_file)
 
 
 if __name__ == "__main__":
