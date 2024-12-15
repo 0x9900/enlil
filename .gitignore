@@ -11,6 +11,7 @@ animmuf.yaml
 \#*\#
 .\#*
 *~
+*.swp
 
 # Distribution / packaging
 .Python
