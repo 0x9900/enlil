@@ -17,7 +17,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Dict, Iterator, List, Optional, Type, Union
+from typing import Dict, Iterator, List, Optional, Type
 
 import yaml
 from PIL import Image
@@ -107,36 +107,35 @@ def add_margin(im_name: Path, top: int, right: int, bottom: int, left: int) -> N
   new_image.save(im_name)
 
 
-def get_etag(url: str) -> str | None:
-  req = urllib.request.Request(url, method='HEAD')
-  with urllib.request.urlopen(req) as response:
-    return response.headers.get('ETag')
+def download_with_etag(url: str, filename: Path) -> bool:
+  etag_file = filename.with_suffix('.etag')
+  etag = None
+  if etag_file.exists():
+    with open(etag_file, "r", encoding='utf-8') as fde:
+      etag = fde.read().strip()
 
-
-def download_with_etag(url: str, filename: Path, etag: Union[str, None] = None) -> bool:
-  # Returns True if a new file has been downloaded False otherwise.
-  headers = {}
+  request = urllib.request.Request(url)
   if etag:
-    headers['If-None-Match'] = etag
+    request.add_header("If-None-Match", etag)
 
-  req = urllib.request.Request(url, headers=headers)
   try:
-    with urllib.request.urlopen(req) as response:
-      if response.status == 200:
-        urllib.request.urlretrieve(url, filename)
-        return True
+    with urllib.request.urlopen(request) as response:
       if response.status == 304:
-        logging.info("File not modified since last download.")
         return False
+      with open(filename, "wb", encoding='utf-8') as fd:
+        fd.write(response.read())
+      if "ETag" in response.headers:
+        with open(etag_file, "w", encoding='utf-8') as fd:
+          fd.write(response.headers["ETag"])
+        return True
   except urllib.error.HTTPError as e:
     if e.code == 304:
-      logging.info("File not modified since last download.")
       return False
     raise
   return False
 
 
-def retrieve_image(source_path, target_dir):
+def retrieve_image(source_path: Path, target_dir: Path) -> None:
   target_name = target_dir.joinpath(source_path.name)
   if target_name.exists():
     return
@@ -146,13 +145,7 @@ def retrieve_image(source_path, target_dir):
 
 
 def retrieve_files(enlil_file: Path, target_dir: Path) -> bool:
-  if not enlil_file.exists():
-    new_file = download_with_etag(SOURCE_JSON, enlil_file)
-  else:
-    etag = get_etag(SOURCE_JSON)
-    new_file = download_with_etag(SOURCE_JSON, enlil_file, etag)
-
-  if not new_file:
+  if not download_with_etag(SOURCE_JSON, enlil_file):
     logging.info('No new version of %s', enlil_file.name)
     return False
 
