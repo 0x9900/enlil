@@ -122,7 +122,7 @@ def download_with_etag(url: str, filename: Path) -> bool:
     with urllib.request.urlopen(request) as response:
       if response.status == 304:
         return False
-      with open(filename, "wb", encoding='utf-8') as fd:
+      with open(filename, "wb") as fd:
         fd.write(response.read())
       if "ETag" in response.headers:
         with open(etag_file, "w", encoding='utf-8') as fd:
