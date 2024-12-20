@@ -200,7 +200,7 @@ def create_links(workdir: Path, file_list: List[Path]):
   for filename in file_list:
     target = workdir.joinpath(f"enlil-{next(cnt)}.jpg")
     target.hardlink_to(filename)
-    logger.info('File "%s" selected', target)
+    logger.debug('File "%s" selected', target)
 
 
 def mk_video(work_dir: Path, video_file: Path):
