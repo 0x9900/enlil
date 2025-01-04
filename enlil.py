@@ -135,13 +135,14 @@ def download_with_etag(url: str, filename: Path) -> bool:
   return False
 
 
-def retrieve_image(source_path: Path, target_dir: Path) -> None:
+def retrieve_image(source_path: Path, target_dir: Path) -> bool:
   target_name = target_dir.joinpath(source_path.name)
   if target_name.exists():
-    return
+    return False
   urllib.request.urlretrieve(NOAA + str(source_path), target_name)
   add_margin(target_name, 0, 0, 50, 0)
   logger.info('%s saved', target_name)
+  return True
 
 
 def retrieve_files(enlil_file: Path, target_dir: Path) -> bool:
@@ -152,10 +153,11 @@ def retrieve_files(enlil_file: Path, target_dir: Path) -> bool:
   logging.info('New %s file has been downloaded: processing', enlil_file)
   with open(enlil_file, 'r', encoding='utf-8') as fdin:
     data_source = json.load(fdin)
+    downloads = []
     for url in data_source:
-      retrieve_image(Path(url['url']), target_dir)
+      downloads.append(retrieve_image(Path(url['url']), target_dir))
 
-  return True
+  return any(downloads)
 
 
 def purge(enlil_file: Path, target_dir: Path) -> None:
