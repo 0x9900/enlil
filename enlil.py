@@ -257,6 +257,8 @@ def main():
   if retrieve_files(config.enlil_file, config.target_dir) or opts.force:
     purge(config.enlil_file, config.target_dir)
     animate(config.target_dir, config.video_file)
+  else:
+    logger.info('Nothing to do; no new ENLIL images.')
 
 
 if __name__ == "__main__":
