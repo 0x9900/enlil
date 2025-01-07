@@ -27,6 +27,7 @@ CONFIG_NAME = 'enlil.yaml'
 NOAA = "https://services.swpc.noaa.gov"
 SOURCE_JSON = NOAA + "/products/animations/enlil.json"
 MARGIN_COLOR = (0x0, 0x0, 0x0)
+TN_WIDTH = 800
 
 logging.basicConfig(format='%(asctime)s %(name)s:%(lineno)d %(levelname)s - %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S', level=logging.INFO)
@@ -240,6 +241,26 @@ def animate(source_dir: Path, video_file: Path):
     mk_video(work_dir, video_file)
 
 
+def mk_thumbnail(target_dir: Path) -> None:
+  enlil_files = []
+  for filename in target_dir.glob('enlil_*.jpg'):
+    enlil_files.append((filename.stat().st_ctime, filename))
+  enlil_files.sort()
+  tn_source = enlil_files.pop()[1]
+  latest = tn_source.with_name('latest.webp')
+
+  image = Image.open(tn_source)
+  thumbnail = image.convert('RGB')
+  width, height = image.size
+  ratio = width / TN_WIDTH
+  thumbnail.thumbnail((int(width / ratio), int(height / ratio)))
+
+  if latest.exists():
+    latest.unlink()
+  thumbnail.save(latest, format="webp")
+  logger.info('Latest: %s', latest)
+
+
 def main():
   logger.setLevel(logging.getLevelName(os.getenv('LOG_LEVEL', 'INFO')))
 
@@ -257,6 +278,7 @@ def main():
   if retrieve_files(config.enlil_file, config.target_dir) or opts.force:
     purge(config.enlil_file, config.target_dir)
     animate(config.target_dir, config.video_file)
+    mk_thumbnail(config.target_dir)
   else:
     logger.info('Nothing to do; no new ENLIL images.')
 
