@@ -247,7 +247,7 @@ def mk_thumbnail(target_dir: Path) -> None:
     enlil_files.append((filename.stat().st_ctime, filename))
   enlil_files.sort()
   tn_source = enlil_files.pop()[1]
-  latest = tn_source.with_name('latest.webp')
+  latest = tn_source.with_name('latest.png')
 
   image = Image.open(tn_source)
   thumbnail = image.convert('RGB')
@@ -257,7 +257,7 @@ def mk_thumbnail(target_dir: Path) -> None:
 
   if latest.exists():
     latest.unlink()
-  thumbnail.save(latest, format="webp")
+  thumbnail.save(latest, format="png")
   logger.info('Latest: %s', latest)
 
 
