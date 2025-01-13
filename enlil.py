@@ -27,7 +27,6 @@ CONFIG_NAME = 'enlil.yaml'
 NOAA = "https://services.swpc.noaa.gov"
 SOURCE_JSON = NOAA + "/products/animations/enlil.json"
 MARGIN_COLOR = (0x0, 0x0, 0x0)
-TN_WIDTH = 800
 
 logging.basicConfig(format='%(asctime)s %(name)s:%(lineno)d %(levelname)s - %(message)s',
                     datefmt='%Y/%m/%d %H:%M:%S', level=logging.INFO)
@@ -251,9 +250,7 @@ def mk_thumbnail(target_dir: Path) -> None:
 
   image = Image.open(tn_source)
   thumbnail = image.convert('RGB')
-  width, height = image.size
-  ratio = width / TN_WIDTH
-  thumbnail.thumbnail((int(width / ratio), int(height / ratio)))
+  thumbnail = thumbnail.resize((800, 450))
 
   if latest.exists():
     latest.unlink()
