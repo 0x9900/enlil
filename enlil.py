@@ -214,7 +214,7 @@ def mk_video(work_dir: Path, video_file: Path):
   tmp_file = work_dir.joinpath(f"{video_file}-{os.getpid()}.mp4")
   input_files = work_dir.joinpath('enlil-%06d.jpg')
   in_args = f'-y -framerate 10 -i {input_files}'.split()
-  ou_args = '-an -c:v libx264 -pix_fmt yuv420p -vf scale=800:542'.split()
+  ou_args = '-g 7 -an -c:v libx264 -pix_fmt yuv420p -vf scale=800:542'.split()
   cmd = [ffmpeg, *in_args, *ou_args, str(tmp_file)]
 
   logger.info('Writing ffmpeg output in %s', logfile)
